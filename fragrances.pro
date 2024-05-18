@@ -13,12 +13,6 @@ top_note(X, CF) :- ask(top_note, X, CF).
 middle_note(X, CF) :- ask(middle_note, X, CF).
 base_note(X, CF) :- ask(base_note, X, CF).
 
-multivalued(season).
-multivalued(datetime).
-multivalued(top_note).
-multivalued(middle_note).
-multivalued(base_note).
-
 fragrance(jpg_le_male_elixir, CF) :- 
     season(winter, CF1),
     datetime(night, CF2),
@@ -33,6 +27,14 @@ fragrance(jpg_le_male_elixir, CF) :-
     middle_note(vanilla, CF11), 
     base_note(honey, CF12),
     evaluate_certainty_factors([CF1, CF2, CF3, CF4, CF5, CF6, CF7, CF8, CF8, CF9, CF10, CF11, CF12], CF).
+
+fragrance(jpg_le_male_elixirr, CF) :- 
+    season(winter, CF1),
+    evaluate_certainty_factors([CF1], CF).
+
+fragrance(jpg_le_male_elixirrr, CF) :- 
+    season(winter, CF1),
+    evaluate_certainty_factors([CF1], CF).
 
 fragrance(givenchy_gentleman, CF) :- 
     season(fall, CF1),

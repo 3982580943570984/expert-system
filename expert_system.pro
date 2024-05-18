@@ -10,7 +10,7 @@ read_command(Command) :- read_line_to_string(user_input, Line), string_lower(Lin
 
 do(help)    :- native_help, !.
 do(load)    :- load_knowledge_base, !.
-do(solve)   :- solve, !.
+do(solve)   :- solve_all, !.
 do(quit)    :- halt(0), !.
 do(clear)   :- write('\033c'), !.
 do(X)       :- format('`~w` is not a legal command.~n', [X]), !.
@@ -33,12 +33,28 @@ list_loaded_predicates(Filename) :-
     format('Listing predicates from module `~w`:~n', [ModuleName]),
     forall(current_predicate(ModuleName:Predicate/Arity), format('~w/~w~n', [Predicate, Arity])).
 
-solve :-
+solve_all :-
     retractall(known(_, _, _, _)),
-    ( 
-        resolve_goal(top_goal(X, CF), []) ->  format('The answer is ~w with certainty ~w~n', [X, CF]);
-        format('No answer found.~n')
-    ).    
+    findall((X, CF), resolve_goal(top_goal(X, CF), []), Solutions),
+    sort(Solutions, UniqueSolutions),
+    filter_uncertain_solutions(UniqueSolutions, FilteredSolutions),
+    (
+        FilteredSolutions \= [] -> print_solutions(FilteredSolutions);
+        otherwise               -> writeln('No answer found.')
+    ).
+
+filter_uncertain_solutions([], []).
+filter_uncertain_solutions([(X, CF)|Rest], [(X, CF)|FilteredRest]) :-
+    CF >= 0.05,
+    filter_uncertain_solutions(Rest, FilteredRest).
+filter_uncertain_solutions([(_, CF)|Rest], FilteredRest) :-
+    CF < 0.05,
+    filter_uncertain_solutions(Rest, FilteredRest).
+
+print_solutions([]).
+print_solutions([(X, CF)|Rest]) :-
+    format('The answer is ~w with certainty ~w~n', [X, CF]),
+    print_solutions(Rest).
 
 resolve_goal(true, _) :- !.
 resolve_goal((Goal, Rest), History) :- evaluate_goal(Goal, [Goal|History]), resolve_goal(Rest, History).
@@ -68,7 +84,7 @@ menuask_prompt(Attribute, Value, CF, Menu, History) :-
         Input == dont_know ->
         (
             CF = 0.5, 
-            asserta(known(dont_know, Attribute, none_of_the_above, CF)),                                  % Запоминаем значение пользователя
+            asserta(known(dont_know, Attribute, none_of_the_above, CF)),                            % Запоминаем значение пользователя
             true
         );
         atom_number(Input, Number),                                                                 % Переводим ответ в число
@@ -81,7 +97,7 @@ menuask_prompt(Attribute, Value, CF, Menu, History) :-
 ask(Attribute, Value, CF, History) :-
     (
         known(yes, Attribute, Value, KnownCF)                       -> (CF = KnownCF, true);        % Ответ на атрибут известен и соответствует значению
-        known(yes, Attribute, _, _), not(multivalued(Attribute))    -> fail;                        % Ответ на атрибут не многозначен и не соответствует значению
+        known(yes, Attribute, _, _)                                 -> fail;                        % Ответ на атрибут не многозначен и не соответствует значению
         known(dont_know, Attribute, _, KnownCF)                     -> (CF = KnownCF, true);        % Ответ на атрибут равен 'dont_know', поэтому продолжаем
         known(_, Attribute, Value, _)                               -> fail;                        % Атрибут с таким значением получил ответ, отличный от 'yes' или 'dont_know'
         ask_prompt(Attribute, Value, CF, History)                                                   % Ответ на атрибут не известен и мы его запрашиваем
